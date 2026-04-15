@@ -1,0 +1,300 @@
+---
+title: "Advanced Bioinformatics 2026 assessment"
+author: "K25117163"
+date: "2026-04-14"
+output: html_document
+---
+
+### **3. R/RStudio Assessments**
+Perform a number of tasks using basic R operations.
+
+#### **Task 3.1: Summing Integers**
+```{r}
+# Evaluates the sum of integers between 5 and 55
+sum(5:55)
+```
+
+#### **Task 3.2: Custom Functions**
+```{r}
+sumfun <- function(n) {
+  sum(5:n)
+}
+# Results for n=10, n=20, n=100
+sumfun(10)
+sumfun(20)
+sumfun(100)
+```
+
+#### **Task 3.3: Fibonacci Series and Loops**
+```{r}
+# Create vector to hold 12 numbers
+fib <- numeric(12)
+# Set the first two numbers to 1
+fib[1:2] <- 1
+# Use a for loop to calculate the rest 
+for (i in 3:12) {
+  fib[i] <- fib[i-1] + fib[i-2]
+}
+# Print on screen
+print(fib)
+```
+
+#### **Task 3.4: mtcars Boxplot**
+```{r}
+library(ggplot2)
+# Plot mpg as a function of gears
+ggplot(mtcars, aes(x = factor(gear), y = mpg, fill = factor(gear))) +
+  geom_boxplot() +
+  labs(x = "Number of Gears", y = "Miles per Gallon", fill = "Gears") +
+  theme_minimal()
+```
+
+
+#### **Task 3.5: Linear Model**
+```{r}
+# Reminder car dataset measures distance in feet(ft)
+# Fit a linear relationship
+fit <- lm(dist ~ speed, data = cars)
+
+# Use summary() to extract coefficients, standard errors, and other statistics
+summary_fit <- summary(fit)
+print(summary_fit)
+
+# Extract specific values for the report
+intercept <- coef(summary_fit)[1, 1]
+slope <- coef(summary_fit)[2, 1]
+se_intercept <- coef(summary_fit)[1, 2]
+se_slope <- coef(summary_fit)[2, 2]
+
+# Displaying results clearly
+cat("Fitted Intercept:", round(intercept, 3), "(SE:", round(se_intercept, 3), ")\n")
+cat("Fitted Slope:", round(slope, 3), "(SE:", round(se_slope, 3), ")\n")
+
+```
+
+#### **Task 3.6: Linear Fit**
+```{r}
+# Reminder car dataset measures distance in feet(ft)
+# Load the ggplot2 library
+library(ggplot2)
+
+# Create the plot
+ggplot(cars, aes(x = speed, y = dist)) +
+  # Add the raw data points
+  geom_point(color = "red", size = 2) +
+  # Add the linear regression line (method = "lm")
+  # se = TRUE adds the shaded confidence interval
+  geom_smooth(method = "lm", color = "green", se = TRUE) +
+  # Add descriptive labels and a theme
+  labs(title = "Linear Fit: Speed vs. Braking Distance",
+       subtitle = "Data source: cars dataset",
+       x = "Speed (mph)",
+       y = "Braking Distance (ft)") +
+  theme_bw()
+```
+
+#### **Task 3.7: Estimate average reaction time**
+```{r}
+# Fit the model: Distance = (ReactionTime * Speed) + (k * Speed^2)
+#   We remove the intercept (0 +) because at 0 mph, distance is 0 ft.
+fit_physics <- lm(dist ~ 0 + speed + I(speed^2), data = cars)
+
+# Extract the coefficient for 'speed'
+#   This coefficient is the reaction time in hours.
+rt_hours <- coef(fit_physics)["speed"]
+
+# Convert reaction time to seconds.
+#   Speed is in mph, but distance is in feet. 
+#   1 mph = 1.467 feet per second.
+# Therefore, the coefficient is already in 'seconds' if we adjust for the mph-to-fps conversion.
+rt_seconds <- rt_hours * (5280 / 3600) 
+
+# Display results
+print(summary(fit_physics))
+cat("\nEstimated Average Reaction Time:", round(rt_seconds, 3), "seconds\n")
+
+# Visualisation
+ggplot(cars, aes(x = speed, y = dist)) +
+  geom_point() +
+# Overlay the quadratic fit
+geom_smooth(method = "lm", formula = y ~ 0 + x + I(x^2), color = "green") +
+  labs(title = "Quadratic Model: Reaction Time + Braking Distance",
+       subtitle = paste("Estimated Reaction Time:", round(rt_seconds, 3), "s"),
+       x = "Speed (mph)",
+       y = "Stopping Distance (ft)") +
+  theme_minimal()
+```
+
+
+#### **Task 3.8: LMS_RNAseq**
+```{r}
+## Define filenames
+file_counts <- "exercise1_counts.csv"
+file_info <- "exercise1_sample_description.info"
+
+# Read the data
+counts <- read.csv(file_counts, row.names = 1)
+info <- read.table(file_info, header = TRUE)
+
+# Verify import
+print("Dimensions of Counts (Genes x Samples):")
+print(dim(counts))
+print("Dimensions of Info (Samples x Metadata):")
+print(dim(info))
+```
+
+#### **Task 3.9: Dimensions**
+```{r}
+# Conversion
+col_data <- as.data.frame(info)
+
+# Check the dimensions of both objects
+# col_data rows = counts columns
+cat("Dimensions of col_data (Rows x Cols):", dim(col_data), "\n")
+cat("Dimensions of counts matrix (Rows x Cols):", dim(counts), "\n")
+
+# N.o samples in the metadata matchs the N.o in the counts
+if (nrow(col_data) == ncol(counts)) {
+  print("Dimension check passed: Metadata matches the count matrix.")
+} else {
+  stop("Dimension mismatch: The number of samples in counts does not match the metadata")
+}
+```
+
+#### **Task 3.10: Construct DESeqDataSet**
+```{r}
+# Conversion to prevent automatic correction/warning
+col_data$condition <- as.factor(col_data$condition)
+
+# Load DESeq2 library
+library(DESeq2)
+
+# Construct the DESeqDataSet (dds) object
+# countData: The matrix of raw counts
+# colData: The dataframe of sample information
+# design: The experimental design formula
+dds <- DESeqDataSetFromMatrix(countData = counts,
+                              colData = col_data,
+                              design = ~ condition)
+
+print(dds)
+```
+
+#### **Task 3.11: Transformation**
+```{r}
+# rlog transformation
+rld <- rlog(dds, blind = FALSE)
+
+#  VST transformation
+vsd <- vst(dds, blind = FALSE)
+
+# Transformed data in matrix
+cat("Dimensions of rlog data:", dim(assay(rld)), "\n")
+cat("Dimensions of VST data: ", dim(assay(vsd)), "\n")
+
+# present few rows of transformed values
+head(assay(rld), n = 3)
+```
+
+#### **Task 3.12: Heatmap of top 40 highly expressed genes**
+```{r}
+# Load the heatmap library
+library(pheatmap)
+
+# Identify  top 40 genes by rlog values
+top_genes <- head(order(rowMeans(assay(rld)), decreasing = TRUE), 40)
+
+# Draw heatmap for rlog data
+pheatmap(assay(rld)[top_genes, ], 
+         main = "Heatmap (rlog): Top 40 Highly Expressed Genes",
+         cluster_rows = TRUE, 
+         show_rownames = TRUE, 
+         cluster_cols = TRUE,
+         fontsize_row = 8)
+
+# 3. Draw heatmap for VST data
+pheatmap(assay(vsd)[top_genes, ], 
+         main = "Heatmap (VST): Top 40 Highly Expressed Genes",
+         cluster_rows = TRUE, 
+         show_rownames = TRUE, 
+         cluster_cols = TRUE,
+         fontsize_row = 8)
+```
+
+#### **Task 3.13: **
+```{r}
+library(RColorBrewer)
+library(pheatmap)
+
+# Calculate the distance between samples
+sampleDists <- dist(t(assay(rld)))
+
+# Convert into a matrix format for plotting
+sampleDistMatrix <- as.matrix(sampleDists)
+
+# Define the row and column names (Sample names)
+rownames(sampleDistMatrix) <- colnames(rld)
+colnames(sampleDistMatrix) <- colnames(rld)
+
+# Set colour palette (Red)
+colors <- colorRampPalette(rev(brewer.pal(9, "Reds")))(255)
+
+# 5. Generate heatmap
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows = sampleDists,
+         clustering_distance_cols = sampleDists,
+         col = colors,
+         main = "Sample Distance Matrix (SDM) - rlog Data")
+
+```
+
+#### **Task 3.14: Principal Component Analysis using rlog method**
+```{r}
+library(ggplot2)
+
+# Run PCA and return data for plotting
+pcaData <- plotPCA(rld, intgroup = "condition", returnData = TRUE)
+
+# Calculate the percentage of variance for PC1 and PC2
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+
+# Print the % significance values
+cat("Significance of PC1 (x-axis):", percentVar[1], "%\n")
+cat("Significance of PC2 (y-axis):", percentVar[2], "%\n")
+
+# Generate PCA plot using ggplot2
+ggplot(pcaData, aes(PC1, PC2, color = condition)) +
+  geom_point(size = 3) +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  coord_fixed() +
+  ggtitle("PCA Plot (rlog method)") +
+  theme_minimal()
+```
+
+#### **Task 3.15: a.PCA using VST**
+```{r}
+# 1. Run PCA for VST data
+pcaData_vst <- plotPCA(vsd, intgroup = "condition", returnData = TRUE)
+
+# 2. Calculate the percentage of variance for PC1 and PC2
+percentVar_vst <- round(100 * attr(pcaData_vst, "percentVar"))
+
+# 3. Print the % significance values for VST
+cat("VST - Significance of PC1:", percentVar_vst[1], "%\n")
+cat("VST - Significance of PC2:", percentVar_vst[2], "%\n")
+
+# 4. Generate the VST PCA plot
+ggplot(pcaData_vst, aes(PC1, PC2, color = condition)) +
+  geom_point(size = 3) +
+  xlab(paste0("PC1: ", percentVar_vst[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar_vst[2], "% variance")) +
+  coord_fixed() +
+  ggtitle("PCA Plot (VST method)") +
+  theme_minimal()
+```
+
+#### **Task 3.15: b. Compare PCA using rlog method against VST**
+
+
+
